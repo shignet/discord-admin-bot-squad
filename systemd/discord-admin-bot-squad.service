@@ -35,7 +35,11 @@ RestrictSUIDSGID=true
 LockPersonality=true
 RestrictRealtime=true
 SystemCallArchitectures=native
-MemoryDenyWriteExecute=true
+
+# MemoryDenyWriteExecute is intentionally NOT set. Node.js's V8 JIT / Baseline compiler
+# needs to allocate RW memory and flip it to RX at runtime; this flag aborts that
+# transition with a V8 fatal ("Check failed: 12 == errno" in SetPermissions). If you ever
+# switch the bot to `node --jitless`, you can re-enable MemoryDenyWriteExecute=true.
 
 # NoNewPrivileges must stay false (or be overridden) because the bot shells out to `sudo`.
 # If you decide to drop the sudo approach, set NoNewPrivileges=true and remove the sudo allowance.
