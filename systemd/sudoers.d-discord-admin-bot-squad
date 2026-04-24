@@ -1,5 +1,5 @@
-# /etc/sudoers.d/discord-admin-bot
-# Install with: install -m 0440 -o root -g root sudoers.d-discord-admin-bot /etc/sudoers.d/discord-admin-bot
+# /etc/sudoers.d/discord-admin-bot-squad
+# Install with: install -m 0440 -o root -g root sudoers.d-discord-admin-bot-squad /etc/sudoers.d/discord-admin-bot-squad
 # Validate with: visudo -c
 #
 # Allows the `discord` user to run ONLY the listed systemctl actions on the listed Squad

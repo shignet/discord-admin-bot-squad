@@ -72,7 +72,7 @@ sudo rm "$CFGDIR/.perm-test"
 ### 3. Clone and install as the `discord` user
 
 ```bash
-sudo -u discord git clone https://github.com/shignet/discord-admin-bot-squad-squad.git /opt/bots/discord-admin-bot-squad
+sudo -u discord git clone https://github.com/shignet/discord-admin-bot-squad.git /opt/bots/discord-admin-bot-squad
 sudo -u discord --preserve-env=PATH bash -lc '
   cd /opt/bots/discord-admin-bot-squad &&
   npm ci --omit=dev &&

@@ -1,5 +1,5 @@
 {
-  "name": "discord-admin-bot",
+  "name": "discord-admin-bot-squad",
   "version": "0.1.0",
   "private": true,
   "description": "Discord slash-command bot for administering Squad game server instances (systemctl control, Admins.cfg and config.sh editing).",
