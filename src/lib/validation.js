@@ -19,3 +19,18 @@ export const INVALID_PLAYER_ID_MESSAGE =
 
 export const INVALID_MOD_ID_MESSAGE =
   'Invalid mod ID. Expected a numeric Steam Workshop ID (up to 20 digits).';
+
+// Admin display name written as a trailing `// name` comment on an Admin= line.
+// Strict allowlist: letters, digits, space, and a small set of punctuation commonly seen
+// in player names. No newlines, no `/`, no `<` — prevents comment/line injection.
+export const ADMIN_NAME = /^[A-Za-z0-9 _.\-\[\]()|'!?]{1,32}$/;
+
+export function sanitizeAdminName(input) {
+  if (typeof input !== 'string') return null;
+  const trimmed = input.trim();
+  if (!ADMIN_NAME.test(trimmed)) return null;
+  return trimmed;
+}
+
+export const INVALID_ADMIN_NAME_MESSAGE =
+  'Invalid name. Allowed: letters, digits, space, and _ . - [ ] ( ) | \' ! ? (1–32 chars).';

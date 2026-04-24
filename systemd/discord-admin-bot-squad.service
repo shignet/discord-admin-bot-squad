@@ -18,6 +18,9 @@ UMask=0027
 
 WorkingDirectory=/opt/bots/discord-admin-bot-squad
 EnvironmentFile=/opt/bots/discord-admin-bot-squad/.env
+# Re-register slash commands on each start so changes to SQUAD_SERVICES (which
+# becomes the `instance` choice list) are pushed to Discord without a manual step.
+ExecStartPre=/usr/bin/node /opt/bots/discord-admin-bot-squad/src/deploy-commands.js
 ExecStart=/usr/bin/node /opt/bots/discord-admin-bot-squad/src/index.js
 Restart=on-failure
 RestartSec=5s

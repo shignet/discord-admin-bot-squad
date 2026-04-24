@@ -1,5 +1,5 @@
 import { readText, writeAtomicWithBackup } from './atomicFile.js';
-import { classifyPlayerId } from './validation.js';
+import { classifyPlayerId, sanitizeAdminName } from './validation.js';
 
 export const TRAIN_ADMINS_GROUP = 'TrainAdmin';
 
@@ -16,8 +16,9 @@ function parseAdminLine(line) {
   return { id: classification.value, idType: classification.type, group: m[2] };
 }
 
-function formatAdminLine(id, group) {
-  return `Admin=${id}:${group}`;
+function formatAdminLine(id, group, name) {
+  const base = `Admin=${id}:${group}`;
+  return name ? `${base} // ${name}` : base;
 }
 
 export async function listTrainAdmin(filePath) {
@@ -40,10 +41,16 @@ function idExists(lines, id) {
   return false;
 }
 
-export async function addTrainAdmin(filePath, id) {
-  // Defense in depth: re-validate the id right before writing.
+export async function addTrainAdmin(filePath, id, name) {
+  // Defense in depth: re-validate the id and name right before writing.
   const classification = classifyPlayerId(id);
   if (!classification) throw new Error('Invalid player id');
+
+  let sanitizedName = null;
+  if (name !== undefined && name !== null) {
+    sanitizedName = sanitizeAdminName(name);
+    if (!sanitizedName) throw new Error('Invalid admin name');
+  }
 
   const content = await readText(filePath);
   const trailingNewline = content.endsWith('\n');
@@ -56,7 +63,7 @@ export async function addTrainAdmin(filePath, id) {
     return { changed: false, reason: 'already-present', backupPath: null };
   }
 
-  lines.push(formatAdminLine(classification.value, TRAIN_ADMINS_GROUP));
+  lines.push(formatAdminLine(classification.value, TRAIN_ADMINS_GROUP, sanitizedName));
   const newContent = lines.join('\n') + (trailingNewline ? '\n' : '\n');
   const backupPath = await writeAtomicWithBackup(filePath, newContent);
   return { changed: true, backupPath };

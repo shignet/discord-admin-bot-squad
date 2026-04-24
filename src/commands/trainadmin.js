@@ -1,5 +1,10 @@
 import { SlashCommandBuilder, MessageFlags, PermissionFlagsBits } from 'discord.js';
-import { classifyPlayerId, INVALID_PLAYER_ID_MESSAGE } from '../lib/validation.js';
+import {
+  classifyPlayerId,
+  sanitizeAdminName,
+  INVALID_PLAYER_ID_MESSAGE,
+  INVALID_ADMIN_NAME_MESSAGE,
+} from '../lib/validation.js';
 import { addTrainAdmin, removeTrainAdmin, listTrainAdmin, TRAIN_ADMINS_GROUP } from '../lib/adminsCfg.js';
 import { postAudit } from '../lib/audit.js';
 import { ROLE } from '../lib/permissions.js';
@@ -16,6 +21,13 @@ export const data = new SlashCommandBuilder()
       .setDescription('Add a SteamID64 or EOS ID to the TrainAdmin group.')
       .addStringOption((o) =>
         o.setName('id').setDescription('SteamID64 (17 digits) or EOS ID (32 lowercase hex).').setRequired(true),
+      )
+      .addStringOption((o) =>
+        o
+          .setName('name')
+          .setDescription('Player name for the trailing `// name` comment (1–32 chars).')
+          .setRequired(true)
+          .setMaxLength(32),
       ),
   )
   .addSubcommand((s) =>
@@ -47,12 +59,21 @@ export async function execute(interaction, { logger }) {
     return;
   }
 
-  if (sub === 'add') return handleAdd(interaction, logger, classification);
+  if (sub === 'add') {
+    const rawName = interaction.options.getString('name', true);
+    const name = sanitizeAdminName(rawName);
+    if (!name) {
+      logger.info({ sub }, 'Rejected invalid name');
+      await interaction.editReply({ content: INVALID_ADMIN_NAME_MESSAGE });
+      return;
+    }
+    return handleAdd(interaction, logger, classification, name);
+  }
   if (sub === 'remove') return handleRemove(interaction, logger, classification);
 }
 
-async function handleAdd(interaction, logger, { type, value }) {
-  const result = await addTrainAdmin(config.paths.adminsCfg, value);
+async function handleAdd(interaction, logger, { type, value }, name) {
+  const result = await addTrainAdmin(config.paths.adminsCfg, value, name);
 
   if (!result.changed) {
     logger.info({ id: value, type, reason: result.reason }, 'trainadmin add: no change');
@@ -62,17 +83,17 @@ async function handleAdd(interaction, logger, { type, value }) {
     return;
   }
 
-  logger.info({ id: value, type, backupPath: result.backupPath }, 'trainadmin added');
+  logger.info({ id: value, type, name, backupPath: result.backupPath }, 'trainadmin added');
   await interaction.editReply({
     content:
-      `\u2705 Added \`${value}\` (${type}) to group \`${TRAIN_ADMINS_GROUP}\`.\n` +
+      `\u2705 Added \`${value}\` (${type}) as \`${name}\` to group \`${TRAIN_ADMINS_GROUP}\`.\n` +
       `\u26a0\ufe0f A restart of the \`${config.squadService}\` instance is required for the change to take effect.`,
   });
 
   await postAudit(interaction.client, {
     user: interaction.user,
     action: `/trainadmin add`,
-    details: `id=${value} type=${type} group=${TRAIN_ADMINS_GROUP}\nbackup=${result.backupPath}`,
+    details: `id=${value} type=${type} name=${name} group=${TRAIN_ADMINS_GROUP}\nbackup=${result.backupPath}`,
     outcome: 'success',
   });
 }
