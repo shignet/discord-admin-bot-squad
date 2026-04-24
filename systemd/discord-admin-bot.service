@@ -7,6 +7,15 @@ Wants=network-online.target
 Type=simple
 User=discord
 Group=discord
+
+# Join the `squad` group as a supplementary group so the bot can read + write the Squad
+# config files that live under the squad user's tree. The target directories must have the
+# SGID bit set so newly created files (tmp files, *.bak.*) inherit group=squad.
+SupplementaryGroups=squad
+
+# 0027 = owner rwx, group rx, other none. Keeps accidental writes from leaking to 'other'.
+UMask=0027
+
 WorkingDirectory=/opt/discord-admin-bot
 EnvironmentFile=/opt/discord-admin-bot/.env
 ExecStart=/usr/bin/node /opt/discord-admin-bot/src/index.js
@@ -18,7 +27,6 @@ NoNewPrivileges=false
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectKernelLogs=true
@@ -35,7 +43,7 @@ MemoryDenyWriteExecute=true
 # ReadWritePaths must include the directories the bot legitimately writes to.
 # Populate these in a drop-in override (systemctl edit discord-admin-bot) with the real paths, e.g.:
 #   [Service]
-#   ReadWritePaths=/home/supporter-train/SquadGame/ServerConfig /home/supporter-train/Configs/supporter-train
+#   ReadWritePaths=/opt/squad/Configs/supporter-train
 
 StandardOutput=journal
 StandardError=journal

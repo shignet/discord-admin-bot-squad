@@ -27,38 +27,97 @@ Player IDs accept **SteamID64** (`^7656119\d{10}$`) or **EOS ID** (`^[0-9a-f]{32
 
 - Node.js ≥ 20
 - A Discord application with a bot user and `applications.commands` scope
-- A dedicated Linux system user (example: `discord`) that will run the bot
-- The Squad instance running as a systemd service (example: `squad-public.service`)
+- Linux host with these user accounts already in place:
+  - **your admin user** — a personal account with `sudo` rights. All install steps run from here; there is no interactive `root`.
+  - **`squad`** — runs each Squad instance (`squad-train.service`, `squad-public.service`, …) and owns `Admins.cfg` / `config.sh`.
+  - **`discord`** — dedicated service account that runs this bot. Created below.
+
+The bot needs to read **and** write config files owned by `squad`. It gets that access by being a supplementary member of the `squad` group, plus an SGID bit on the target directory so new files (tmp writes, `*.bak.*`) inherit `group=squad`.
 
 ## Installation
 
+All commands below run **as your admin user** — prefix with `sudo` where shown.
+
+### 1. Create the `discord` service account and its tree
+
 ```bash
-# As root / via your config-management system
-useradd -r -s /usr/sbin/nologin discord
-install -d -o discord -g discord /opt/discord-admin-bot
-
-# As `discord`
-cd /opt/discord-admin-bot
-git clone <this-repo> .
-npm ci --omit=dev
-cp .env.example .env
-# Fill in .env with your tokens, role IDs, channel ID, and absolute paths.
-
-# Register slash commands once (and again whenever commands change)
-npm run deploy-commands
-
-# As root
-install -m 0440 -o root -g root systemd/sudoers.d-discord-admin-bot /etc/sudoers.d/discord-admin-bot
-visudo -c    # must print "parsed OK"
-
-install -m 0644 systemd/discord-admin-bot.service /etc/systemd/system/discord-admin-bot.service
-# Add a drop-in to grant write access to the Squad config directories, e.g.:
-#   systemctl edit discord-admin-bot
-#   [Service]
-#   ReadWritePaths=/home/supporter-train/SquadGame/ServerConfig /home/supporter-train/Configs/supporter-train
-systemctl daemon-reload
-systemctl enable --now discord-admin-bot
+sudo useradd -r -s /usr/sbin/nologin -G squad discord
+sudo install -d -o discord -g discord -m 0750 /opt/discord-admin-bot
 ```
+
+Verify: `id discord` must list `squad` as a supplementary group.
+
+### 2. Prepare the Squad config directory for group writes
+
+Replace `/opt/squad/Configs/supporter-train` with the real directory that holds your `Admins.cfg` and `config.sh`.
+
+```bash
+CFGDIR=/opt/squad/Configs/supporter-train
+
+sudo chgrp squad   "$CFGDIR"
+sudo chmod 2775    "$CFGDIR"    # 2xxx = SGID: new files inherit group=squad
+
+sudo chgrp squad   "$CFGDIR"/Admins.cfg "$CFGDIR"/config.sh
+sudo chmod 0660    "$CFGDIR"/Admins.cfg "$CFGDIR"/config.sh
+```
+
+Sanity check — create a file as `discord` and confirm group inheritance:
+
+```bash
+sudo -u discord touch "$CFGDIR/.perm-test" && ls -l "$CFGDIR/.perm-test"
+# -rw-r----- 1 discord squad … .perm-test
+sudo rm "$CFGDIR/.perm-test"
+```
+
+### 3. Clone and install as the `discord` user
+
+```bash
+sudo -u discord git clone https://github.com/shignet/discord-admin-bot-squad.git /opt/discord-admin-bot
+sudo -u discord --preserve-env=PATH bash -lc '
+  cd /opt/discord-admin-bot &&
+  npm ci --omit=dev &&
+  cp -n .env.example .env
+'
+sudo -u discord $EDITOR /opt/discord-admin-bot/.env   # fill in tokens, role IDs, paths, SQUAD_SERVICES
+sudo chmod 0640 /opt/discord-admin-bot/.env
+sudo chown discord:discord /opt/discord-admin-bot/.env
+```
+
+### 4. Register the slash commands
+
+```bash
+sudo -u discord bash -lc 'cd /opt/discord-admin-bot && npm run deploy-commands'
+```
+
+Re-run after any change to command definitions or to `SQUAD_SERVICES`.
+
+### 5. Install the sudoers allow-list
+
+Edit `systemd/sudoers.d-discord-admin-bot` first and uncomment the blocks for **exactly** the services you listed in `SQUAD_SERVICES`. The two files must stay in lock-step — see *Operational notes* below.
+
+```bash
+sudo install -m 0440 -o root -g root \
+  systemd/sudoers.d-discord-admin-bot /etc/sudoers.d/discord-admin-bot
+sudo visudo -c           # must print "parsed OK"
+```
+
+### 6. Install the systemd unit
+
+```bash
+sudo install -m 0644 systemd/discord-admin-bot.service \
+  /etc/systemd/system/discord-admin-bot.service
+
+# Drop-in for the directories the bot legitimately writes to:
+sudo systemctl edit discord-admin-bot
+# [Service]
+# ReadWritePaths=/opt/squad/Configs/supporter-train
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now discord-admin-bot
+sudo journalctl -u discord-admin-bot -f
+```
+
+You should see `Commands loaded` and `Bot ready` within a second or two.
 
 ## .env reference
 
