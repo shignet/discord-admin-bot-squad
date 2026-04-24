@@ -8,7 +8,7 @@ Discord slash-command bot for administering Squad game server instances.
 | --- | --- | --- | :---: | :---: |
 | `/server` | `start` / `stop` / `restart` | `sudo systemctl <action> <instance>` — `instance` is a required dropdown, sourced from `SQUAD_SERVICES` | ✅ | ❌ |
 | `/server` | `status` | `sudo systemctl status <instance>` | ✅ | ✅ |
-| `/trainadmin` | `add` / `remove` / `list` | Edits `Admin=<id>:TrainAdmins` lines in `Admins.cfg` | ✅ | ✅ |
+| `/trainadmin` | `add` / `remove` / `list` | Edits `Admin=<id>:TrainAdmin` lines in `Admins.cfg` | ✅ | ✅ |
 | `/mod` | `add` / `remove` / `list` | Edits the `export DSG_MOD_LIST="…"` line in `config.sh` | ✅ | ❌ |
 
 Player IDs accept **SteamID64** (`^7656119\d{10}$`) or **EOS ID** (`^[0-9a-f]{32}$`, lowercase only). Mod IDs accept digits only (`^\d{1,20}$`).
@@ -129,7 +129,7 @@ See [`.env.example`](./.env.example). All values are required unless explicitly 
 | `DISCORD_CLIENT_ID` | Application ID — used when registering guild commands |
 | `DISCORD_GUILD_ID` | The single guild the bot serves |
 | `SENIOR_ADMIN_ROLE_ID` | Role that may control the server and edit mods |
-| `ADMIN_ROLE_ID` | Role that may edit TrainAdmins and view status |
+| `ADMIN_ROLE_ID` | Role that may edit TrainAdmin and view status |
 | `AUDIT_CHANNEL_ID` | Channel that receives one embed per executed command |
 | `SQUAD_SERVICES` | Comma-separated list of systemd unit names. Each entry must also be whitelisted in `/etc/sudoers.d/discord-admin-bot-squad` |
 | `ADMINS_CFG_PATH` | Absolute path to the supporter-train `Admins.cfg` |

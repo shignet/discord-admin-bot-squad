@@ -1,19 +1,19 @@
 import { SlashCommandBuilder, MessageFlags, PermissionFlagsBits } from 'discord.js';
 import { classifyPlayerId, INVALID_PLAYER_ID_MESSAGE } from '../lib/validation.js';
-import { addTrainAdmin, removeTrainAdmin, listTrainAdmins, TRAIN_ADMINS_GROUP } from '../lib/adminsCfg.js';
+import { addTrainAdmin, removeTrainAdmin, listTrainAdmin, TRAIN_ADMINS_GROUP } from '../lib/adminsCfg.js';
 import { postAudit } from '../lib/audit.js';
 import { ROLE } from '../lib/permissions.js';
 import { config } from '../config.js';
 
 export const data = new SlashCommandBuilder()
   .setName('trainadmin')
-  .setDescription('Manage members of the TrainAdmins group in Admins.cfg.')
+  .setDescription('Manage members of the TrainAdmin group in Admins.cfg.')
   .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
   .setDMPermission(false)
   .addSubcommand((s) =>
     s
       .setName('add')
-      .setDescription('Add a SteamID64 or EOS ID to the TrainAdmins group.')
+      .setDescription('Add a SteamID64 or EOS ID to the TrainAdmin group.')
       .addStringOption((o) =>
         o.setName('id').setDescription('SteamID64 (17 digits) or EOS ID (32 lowercase hex).').setRequired(true),
       ),
@@ -21,14 +21,14 @@ export const data = new SlashCommandBuilder()
   .addSubcommand((s) =>
     s
       .setName('remove')
-      .setDescription('Remove a SteamID64 or EOS ID from the TrainAdmins group.')
+      .setDescription('Remove a SteamID64 or EOS ID from the TrainAdmin group.')
       .addStringOption((o) =>
         o.setName('id').setDescription('SteamID64 (17 digits) or EOS ID (32 lowercase hex).').setRequired(true),
       ),
   )
-  .addSubcommand((s) => s.setName('list').setDescription('List all TrainAdmins entries.'));
+  .addSubcommand((s) => s.setName('list').setDescription('List all TrainAdmin entries.'));
 
-// Senior and regular admins may both manage TrainAdmins.
+// Senior and regular admins may both manage TrainAdmin.
 export const requiredRoles = [ROLE.SENIOR_ADMIN, ROLE.ADMIN];
 
 export async function execute(interaction, { logger }) {
@@ -108,7 +108,7 @@ async function handleRemove(interaction, logger, { type, value }) {
 }
 
 async function handleList(interaction, logger) {
-  const entries = await listTrainAdmins(config.paths.adminsCfg);
+  const entries = await listTrainAdmin(config.paths.adminsCfg);
   logger.info({ count: entries.length }, 'trainadmin list');
 
   if (entries.length === 0) {

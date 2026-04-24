@@ -1,7 +1,7 @@
 import { readText, writeAtomicWithBackup } from './atomicFile.js';
 import { classifyPlayerId } from './validation.js';
 
-export const TRAIN_ADMINS_GROUP = 'TrainAdmins';
+export const TRAIN_ADMINS_GROUP = 'TrainAdmin';
 
 // Matches exactly one admin line (no trailing junk). Captures: 1=id, 2=group.
 // Squad allows optional whitespace around `=` and `:`. We mirror that here but re-validate the id afterwards.
@@ -19,7 +19,7 @@ function formatAdminLine(id, group) {
   return `Admin=${id}:${group}`;
 }
 
-export async function listTrainAdmins(filePath) {
+export async function listTrainAdmin(filePath) {
   const content = await readText(filePath);
   const out = [];
   for (const line of content.split(/\r?\n/)) {
