@@ -42,7 +42,7 @@ All commands below run **as your admin user** — prefix with `sudo` where shown
 
 ```bash
 sudo useradd -r -s /usr/sbin/nologin -G squad discord
-sudo install -d -o discord -g discord -m 0750 /opt/bots/discord-admin-bot-squad
+sudo install -d -o discord -g discord -m 0755 /opt/bots/discord-admin-bot-squad
 ```
 
 Verify: `id discord` must list `squad` as a supplementary group.
