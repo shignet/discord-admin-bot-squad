@@ -3,9 +3,10 @@ import { classifyPlayerId } from './validation.js';
 
 export const TRAIN_ADMINS_GROUP = 'TrainAdmin';
 
-// Matches exactly one admin line (no trailing junk). Captures: 1=id, 2=group.
-// Squad allows optional whitespace around `=` and `:`. We mirror that here but re-validate the id afterwards.
-const ADMIN_LINE = /^\s*Admin\s*=\s*([^:\s]+)\s*:\s*(\S+)\s*$/;
+// Matches exactly one admin line. Captures: 1=id, 2=group.
+// Squad allows optional whitespace around `=` and `:`, and a trailing `// …` inline comment
+// (commonly used to note the player's name). We mirror that here but re-validate the id afterwards.
+const ADMIN_LINE = /^\s*Admin\s*=\s*([^:\s]+)\s*:\s*(\S+)\s*(?:\/\/.*)?$/;
 
 function parseAdminLine(line) {
   const m = line.match(ADMIN_LINE);

@@ -148,6 +148,42 @@ test('backup file is created on write and contains the ORIGINAL content', async 
   assert.ok(entries.some((n) => n.startsWith('Admins.cfg.bak.')), 'backup file present');
 });
 
+test('listTrainAdmin accepts trailing `// name` comments on admin lines', async () => {
+  // Squad's Admins.cfg convention is to append `// PlayerName` on each Admin= line. The
+  // parser must accept those trailing comments; if it anchors on bare end-of-line, a real
+  // production cfg returns zero matches.
+  const withComments = [
+    'Group=TrainAdmin:ChangeMap,StartVote,Kick,Ban',
+    `Admin=${STEAM_A}:TrainAdmin // Alice`,
+    `Admin=${STEAM_B}:TrainAdmin    //    Bob with spaces`,
+    `Admin=${EOS_A}:TrainAdmin// nospace`,
+    'Admin=76561197999999999:SuperAdmin // not a train admin',
+    '',
+  ].join('\n');
+  const { filePath } = await setup(withComments);
+  const entries = await listTrainAdmin(filePath);
+  assert.deepEqual(entries, [
+    { id: STEAM_A, idType: 'steam' },
+    { id: STEAM_B, idType: 'steam' },
+    { id: EOS_A, idType: 'eos' },
+  ]);
+});
+
+test('removeTrainAdmin removes a commented line by id, dropping the comment', async () => {
+  const withComments = [
+    'Group=TrainAdmin:ChangeMap,StartVote,Kick,Ban',
+    `Admin=${STEAM_A}:TrainAdmin // Alice`,
+    `Admin=${STEAM_B}:TrainAdmin // Bob`,
+    '',
+  ].join('\n');
+  const { filePath } = await setup(withComments);
+  const result = await removeTrainAdmin(filePath, STEAM_A);
+  assert.equal(result.changed, true);
+  const content = await readFile(filePath, 'utf8');
+  assert.ok(!content.includes(STEAM_A), 'Alice removed');
+  assert.ok(content.includes(`Admin=${STEAM_B}:TrainAdmin // Bob`), 'Bob and his comment preserved');
+});
+
 test('listTrainAdmin silently ignores malformed existing admin lines', async () => {
   // Someone hand-edited the file and introduced a malformed id. listTrainAdmin must NOT crash
   // and must NOT surface the malformed entry — it's a read-side defense in depth.
