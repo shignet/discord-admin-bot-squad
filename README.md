@@ -157,6 +157,7 @@ src/
     mod.js             /mod add|remove|list
   lib/
     systemctl.js       execFile-based sudo/systemctl wrapper
+    systemctlGuard.js  Allowlist gates for actions and unit names (pre-execFile)
     adminsCfg.js       Admins.cfg reader/editor
     configSh.js        config.sh reader/editor (DSG_MOD_LIST line only)
     atomicFile.js      Atomic write + timestamped backups
@@ -167,4 +168,18 @@ src/
 systemd/
   discord-admin-bot-squad.service
   sudoers.d-discord-admin-bot-squad
+test/
+  adminsCfg.test.js    Admins.cfg editor tests
+  atomicFile.test.js   Atomic-write + backup rotation tests
+  configSh.test.js     config.sh editor tests
+  systemctlGuard.test.js  Action/unit-name allowlist tests
+  validation.test.js   Steam / EOS / mod ID regex tests
 ```
+
+## Tests
+
+```bash
+npm test
+```
+
+Runs the Node built-in test runner against `test/**/*.test.js`. No network, no real `systemctl` — the guard layer and file editors are covered in isolation.
