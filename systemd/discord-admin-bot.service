@@ -16,9 +16,9 @@ SupplementaryGroups=squad
 # 0027 = owner rwx, group rx, other none. Keeps accidental writes from leaking to 'other'.
 UMask=0027
 
-WorkingDirectory=/opt/discord-admin-bot
-EnvironmentFile=/opt/discord-admin-bot/.env
-ExecStart=/usr/bin/node /opt/discord-admin-bot/src/index.js
+WorkingDirectory=/opt/bots/discord-admin-bot-squad
+EnvironmentFile=/opt/bots/discord-admin-bot-squad/.env
+ExecStart=/usr/bin/node /opt/bots/discord-admin-bot-squad/src/index.js
 Restart=on-failure
 RestartSec=5s
 
@@ -41,7 +41,7 @@ MemoryDenyWriteExecute=true
 # If you decide to drop the sudo approach, set NoNewPrivileges=true and remove the sudo allowance.
 
 # ReadWritePaths must include the directories the bot legitimately writes to.
-# Populate these in a drop-in override (systemctl edit discord-admin-bot) with the real paths, e.g.:
+# Populate these in a drop-in override (systemctl edit discord-admin-bot-squad) with the real paths, e.g.:
 #   [Service]
 #   ReadWritePaths=/opt/squad/Configs/supporter-train
 

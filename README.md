@@ -1,4 +1,4 @@
-# discord-admin-bot
+# discord-admin-bot-squad
 
 Discord slash-command bot for administering Squad game server instances.
 
@@ -18,7 +18,7 @@ Player IDs accept **SteamID64** (`^7656119\d{10}$`) or **EOS ID** (`^[0-9a-f]{32
 - **Strict allowlist validation** on every user-supplied value. No blocklists, no silent normalization.
 - **Defense in depth** — IDs are re-validated immediately before being written to disk.
 - **`execFile` only** — `sudo` and `systemctl` are invoked with an argument array, never a shell string.
-- **Minimal sudoers whitelist** — the `discord` user can only run the exact `systemctl <action> <instance>` argv combinations defined in `systemd/sudoers.d-discord-admin-bot`. **Adding a new instance is a deliberate two-place edit** (sudoers + `SQUAD_SERVICES` in `.env`) so that granting access to a production instance never happens by configuration slip.
+- **Minimal sudoers whitelist** — the `discord` user can only run the exact `systemctl <action> <instance>` argv combinations defined in `systemd/sudoers.d-discord-admin-bot-squad`. **Adding a new instance is a deliberate two-place edit** (sudoers + `SQUAD_SERVICES` in `.env`) so that granting access to a production instance never happens by configuration slip.
 - **Atomic writes with timestamped backups** — config-file writes happen as `copy → tmp-file → rename`, keeping the last ten backups per file.
 - **Per-subcommand role checks server-side** — Discord's `setDefaultMemberPermissions` is treated as a UI hint only; the bot enforces the real gate.
 - **Audit log** — every executed command is posted to `AUDIT_CHANNEL_ID`, including user tag, action, outcome, and backup path.
@@ -42,7 +42,7 @@ All commands below run **as your admin user** — prefix with `sudo` where shown
 
 ```bash
 sudo useradd -r -s /usr/sbin/nologin -G squad discord
-sudo install -d -o discord -g discord -m 0750 /opt/discord-admin-bot
+sudo install -d -o discord -g discord -m 0750 /opt/bots/discord-admin-bot-squad
 ```
 
 Verify: `id discord` must list `squad` as a supplementary group.
@@ -72,49 +72,49 @@ sudo rm "$CFGDIR/.perm-test"
 ### 3. Clone and install as the `discord` user
 
 ```bash
-sudo -u discord git clone https://github.com/shignet/discord-admin-bot-squad.git /opt/discord-admin-bot
+sudo -u discord git clone https://github.com/shignet/discord-admin-bot-squad-squad.git /opt/bots/discord-admin-bot-squad
 sudo -u discord --preserve-env=PATH bash -lc '
-  cd /opt/discord-admin-bot &&
+  cd /opt/bots/discord-admin-bot-squad &&
   npm ci --omit=dev &&
   cp -n .env.example .env
 '
-sudo -u discord $EDITOR /opt/discord-admin-bot/.env   # fill in tokens, role IDs, paths, SQUAD_SERVICES
-sudo chmod 0640 /opt/discord-admin-bot/.env
-sudo chown discord:discord /opt/discord-admin-bot/.env
+sudo -u discord $EDITOR /opt/bots/discord-admin-bot-squad/.env   # fill in tokens, role IDs, paths, SQUAD_SERVICES
+sudo chmod 0640 /opt/bots/discord-admin-bot-squad/.env
+sudo chown discord:discord /opt/bots/discord-admin-bot-squad/.env
 ```
 
 ### 4. Register the slash commands
 
 ```bash
-sudo -u discord bash -lc 'cd /opt/discord-admin-bot && npm run deploy-commands'
+sudo -u discord bash -lc 'cd /opt/bots/discord-admin-bot-squad && npm run deploy-commands'
 ```
 
 Re-run after any change to command definitions or to `SQUAD_SERVICES`.
 
 ### 5. Install the sudoers allow-list
 
-Edit `systemd/sudoers.d-discord-admin-bot` first and uncomment the blocks for **exactly** the services you listed in `SQUAD_SERVICES`. The two files must stay in lock-step — see *Operational notes* below.
+Edit `systemd/sudoers.d-discord-admin-bot-squad` first and uncomment the blocks for **exactly** the services you listed in `SQUAD_SERVICES`. The two files must stay in lock-step — see *Operational notes* below.
 
 ```bash
 sudo install -m 0440 -o root -g root \
-  systemd/sudoers.d-discord-admin-bot /etc/sudoers.d/discord-admin-bot
+  systemd/sudoers.d-discord-admin-bot-squad /etc/sudoers.d/discord-admin-bot-squad
 sudo visudo -c           # must print "parsed OK"
 ```
 
 ### 6. Install the systemd unit
 
 ```bash
-sudo install -m 0644 systemd/discord-admin-bot.service \
-  /etc/systemd/system/discord-admin-bot.service
+sudo install -m 0644 systemd/discord-admin-bot-squad.service \
+  /etc/systemd/system/discord-admin-bot-squad.service
 
 # Drop-in for the directories the bot legitimately writes to:
-sudo systemctl edit discord-admin-bot
+sudo systemctl edit discord-admin-bot-squad
 # [Service]
 # ReadWritePaths=/opt/squad/Configs/supporter-train
 
 sudo systemctl daemon-reload
-sudo systemctl enable --now discord-admin-bot
-sudo journalctl -u discord-admin-bot -f
+sudo systemctl enable --now discord-admin-bot-squad
+sudo journalctl -u discord-admin-bot-squad -f
 ```
 
 You should see `Commands loaded` and `Bot ready` within a second or two.
@@ -131,7 +131,7 @@ See [`.env.example`](./.env.example). All values are required unless explicitly 
 | `SENIOR_ADMIN_ROLE_ID` | Role that may control the server and edit mods |
 | `ADMIN_ROLE_ID` | Role that may edit TrainAdmins and view status |
 | `AUDIT_CHANNEL_ID` | Channel that receives one embed per executed command |
-| `SQUAD_SERVICES` | Comma-separated list of systemd unit names. Each entry must also be whitelisted in `/etc/sudoers.d/discord-admin-bot` |
+| `SQUAD_SERVICES` | Comma-separated list of systemd unit names. Each entry must also be whitelisted in `/etc/sudoers.d/discord-admin-bot-squad` |
 | `ADMINS_CFG_PATH` | Absolute path to the supporter-train `Admins.cfg` |
 | `CONFIG_SH_PATH` | Absolute path to the supporter-train `config.sh` |
 | `LOG_LEVEL` | Optional pino level (`info` by default) |
@@ -139,9 +139,9 @@ See [`.env.example`](./.env.example). All values are required unless explicitly 
 ## Operational notes
 
 - **Change to `Admins.cfg` or `config.sh` needs a server restart** to take effect. The bot does not restart the service automatically; it reminds the user in the reply.
-- **Logs** land in `journald` (`journalctl -u discord-admin-bot -f`). Structured JSON via pino.
+- **Logs** land in `journald` (`journalctl -u discord-admin-bot-squad -f`). Structured JSON via pino.
 - **Backups** are written next to each managed file as `<name>.bak.<UTC-timestamp>`. Oldest are pruned after the tenth.
-- **Adding or renaming an instance** requires updating both `SQUAD_SERVICES` in `.env` and the allow-list in `/etc/sudoers.d/discord-admin-bot`. The bot re-registers its `/server` slash-command choices on the next `npm run deploy-commands` run.
+- **Adding or renaming an instance** requires updating both `SQUAD_SERVICES` in `.env` and the allow-list in `/etc/sudoers.d/discord-admin-bot-squad`. The bot re-registers its `/server` slash-command choices on the next `npm run deploy-commands` run.
 
 ## Project layout
 
@@ -165,6 +165,6 @@ src/
     audit.js           Audit-channel embed poster
     logger.js          pino logger
 systemd/
-  discord-admin-bot.service
-  sudoers.d-discord-admin-bot
+  discord-admin-bot-squad.service
+  sudoers.d-discord-admin-bot-squad
 ```
