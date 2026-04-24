@@ -1,0 +1,10 @@
+* text=auto eol=lf
+
+# Linux-only artifacts — must stay LF even when cloned on Windows
+*.sh            text eol=lf
+systemd/*       text eol=lf
+
+# Binary
+*.png           binary
+*.jpg           binary
+*.ico           binary

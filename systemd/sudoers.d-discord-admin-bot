@@ -1,0 +1,30 @@
+# /etc/sudoers.d/discord-admin-bot
+# Install with: install -m 0440 -o root -g root sudoers.d-discord-admin-bot /etc/sudoers.d/discord-admin-bot
+# Validate with: visudo -c
+#
+# Allows the `discord` user to run ONLY the listed systemctl actions on the listed Squad
+# instances, without a password. The bot invokes:
+#   execFile('/usr/bin/sudo', ['-n', '/bin/systemctl', ACTION, SERVICE])
+# No wildcards, no shell metacharacters: every exact argv combination is explicitly whitelisted.
+#
+# Adding a new instance is a TWO-PLACE edit BY DESIGN:
+#   1. Append its 5 action lines here.
+#   2. Append the service name to SQUAD_SERVICES in the bot's .env.
+# The intentional friction makes it hard to accidentally grant the bot access to a production
+# instance without an explicit sudoers change.
+
+Defaults:discord !requiretty
+
+# --- squad-train.service (training instance) ---
+discord ALL=(root) NOPASSWD: /bin/systemctl start squad-train.service, \
+                             /bin/systemctl stop squad-train.service, \
+                             /bin/systemctl restart squad-train.service, \
+                             /bin/systemctl status squad-train.service, \
+                             /bin/systemctl is-active squad-train.service
+
+# --- Additional instances (uncomment and adjust when the bot should manage them) ---
+# discord ALL=(root) NOPASSWD: /bin/systemctl start squad-public.service, \
+#                              /bin/systemctl stop squad-public.service, \
+#                              /bin/systemctl restart squad-public.service, \
+#                              /bin/systemctl status squad-public.service, \
+#                              /bin/systemctl is-active squad-public.service

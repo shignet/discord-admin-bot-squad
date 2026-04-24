@@ -1,0 +1,44 @@
+[Unit]
+Description=Discord Admin Bot for Squad server administration
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=discord
+Group=discord
+WorkingDirectory=/opt/discord-admin-bot
+EnvironmentFile=/opt/discord-admin-bot/.env
+ExecStart=/usr/bin/node /opt/discord-admin-bot/src/index.js
+Restart=on-failure
+RestartSec=5s
+
+# Hardening. Tighten further if it breaks nothing in your environment.
+NoNewPrivileges=false
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+SystemCallArchitectures=native
+MemoryDenyWriteExecute=true
+
+# NoNewPrivileges must stay false (or be overridden) because the bot shells out to `sudo`.
+# If you decide to drop the sudo approach, set NoNewPrivileges=true and remove the sudo allowance.
+
+# ReadWritePaths must include the directories the bot legitimately writes to.
+# Populate these in a drop-in override (systemctl edit discord-admin-bot) with the real paths, e.g.:
+#   [Service]
+#   ReadWritePaths=/home/supporter-train/SquadGame/ServerConfig /home/supporter-train/Configs/supporter-train
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

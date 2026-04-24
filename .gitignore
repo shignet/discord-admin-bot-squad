@@ -1,0 +1,20 @@
+node_modules/
+
+# Secrets — never commit
+.env
+.env.local
+.env.*.local
+
+# Runtime artifacts
+*.log
+npm-debug.log*
+
+# Backup files produced by the bot during local testing
+*.bak.*
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+Thumbs.db

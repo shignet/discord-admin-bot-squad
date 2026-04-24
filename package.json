@@ -1,0 +1,20 @@
+{
+  "name": "discord-admin-bot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Discord slash-command bot for administering Squad game server instances (systemctl control, Admins.cfg and config.sh editing).",
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "deploy-commands": "node src/deploy-commands.js",
+    "test": "node --test \"test/**/*.test.js\""
+  },
+  "dependencies": {
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5",
+    "pino": "^9.5.0"
+  }
+}
