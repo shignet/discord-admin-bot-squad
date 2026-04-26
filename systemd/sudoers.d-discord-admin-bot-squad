@@ -27,9 +27,16 @@ discord ALL=(root) NOPASSWD: /bin/systemctl start squad-train.service, \
 #   execFile('/usr/bin/sudo', ['-n', '/opt/squad/Skripte/GameUpdate.sh'])
 discord ALL=(root) NOPASSWD: /opt/squad/Skripte/GameUpdate.sh ""
 
-# --- Additional instances (uncomment and adjust when the bot should manage them) ---
-# discord ALL=(root) NOPASSWD: /bin/systemctl start squad-public.service, \
-#                              /bin/systemctl stop squad-public.service, \
-#                              /bin/systemctl restart squad-public.service, \
-#                              /bin/systemctl status squad-public.service, \
-#                              /bin/systemctl is-active squad-public.service
+# --- squad-public.service ---
+discord ALL=(root) NOPASSWD: /bin/systemctl start squad-public.service, \
+                             /bin/systemctl stop squad-public.service, \
+                             /bin/systemctl restart squad-public.service, \
+                             /bin/systemctl status squad-public.service, \
+                             /bin/systemctl is-active squad-public.service
+
+# --- squad-supporter-train.service ---
+discord ALL=(root) NOPASSWD: /bin/systemctl start squad-supporter-train.service, \
+                             /bin/systemctl stop squad-supporter-train.service, \
+                             /bin/systemctl restart squad-supporter-train.service, \
+                             /bin/systemctl status squad-supporter-train.service, \
+                             /bin/systemctl is-active squad-supporter-train.service

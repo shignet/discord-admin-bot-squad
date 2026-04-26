@@ -10,6 +10,7 @@ Discord slash-command bot for administering Squad game server instances.
 | `/server` | `status` | `sudo systemctl status <instance>` | ✅ | ✅ |
 | `/trainadmin` | `add` / `remove` / `list` | Edits `Admin=<id>:TrainAdmin` lines in `Admins.cfg` | ✅ | ✅ |
 | `/mod` | `add` / `remove` / `list` | Edits the `export DSG_MOD_LIST="…"` line in `config.sh` | ✅ | ❌ |
+| `/gameupdate` | — | `sudo /opt/squad/Skripte/GameUpdate.sh` — runs the Squad update script. Affected instance(s) must be restarted manually afterwards. | ✅ | ❌ |
 
 Player IDs accept **SteamID64** (`^7656119\d{10}$`) or **EOS ID** (`^[0-9a-f]{32}$`, lowercase only). Mod IDs accept digits only (`^\d{1,20}$`).
 
@@ -142,6 +143,8 @@ See [`.env.example`](./.env.example). All values are required unless explicitly 
 - **Logs** land in `journald` (`journalctl -u discord-admin-bot-squad -f`). Structured JSON via pino.
 - **Backups** are written next to each managed file as `<name>.bak.<UTC-timestamp>`. Oldest are pruned after the tenth.
 - **Adding or renaming an instance** requires updating both `SQUAD_SERVICES` in `.env` and the allow-list in `/etc/sudoers.d/discord-admin-bot-squad`. The bot re-registers its `/server` slash-command choices on the next `npm run deploy-commands` run.
+- **`/gameupdate` does not stop or restart any server.** The script only updates the game files; a Senior Admin must issue `/server restart <instance>` afterwards for each affected instance. The command has a 20-minute timeout to accommodate slow SteamCMD downloads.
+- **Never run `git` under `sudo`** in `/opt/bots/discord-admin-bot-squad` — the repo is owned by the `discord` user and running git as root triggers a "dubious ownership" error. Use `sudo -u discord git -C /opt/bots/discord-admin-bot-squad <cmd>` instead.
 
 ## Project layout
 
@@ -155,9 +158,11 @@ src/
     server.js          /server start|stop|restart|status
     trainadmin.js      /trainadmin add|remove|list
     mod.js             /mod add|remove|list
+    gameupdate.js      /gameupdate (runs GameUpdate.sh)
   lib/
     systemctl.js       execFile-based sudo/systemctl wrapper
     systemctlGuard.js  Allowlist gates for actions and unit names (pre-execFile)
+    gameUpdate.js      execFile-based wrapper for /opt/squad/Skripte/GameUpdate.sh
     adminsCfg.js       Admins.cfg reader/editor
     configSh.js        config.sh reader/editor (DSG_MOD_LIST line only)
     atomicFile.js      Atomic write + timestamped backups
