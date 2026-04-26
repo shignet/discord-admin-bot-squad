@@ -8,7 +8,7 @@ Discord slash-command bot for administering Squad game server instances.
 | --- | --- | --- | :---: | :---: |
 | `/server` | `start` / `stop` / `restart` | `sudo systemctl <action> <instance>` — `instance` is a required dropdown, sourced from `SQUAD_SERVICES` | ✅ | ❌ |
 | `/server` | `status` | `sudo systemctl status <instance>` | ✅ | ✅ |
-| `/trainadmin` | `add` / `remove` / `list` | Edits `Admin=<id>:TrainAdmin` lines in `Admins.cfg` | ✅ | ✅ |
+| `/patreonadmin` | `add` / `remove` / `list` | Edits `Admin=<id>:TrainAdmin` lines in `Admins.cfg` | ✅ | ✅ |
 | `/mod` | `add` / `remove` / `list` | Edits the `export DSG_MOD_LIST="…"` line in `config.sh` | ✅ | ❌ |
 | `/gameupdate` | — | `sudo /opt/squad/Skripte/GameUpdate.sh` — runs the Squad update script. Affected instance(s) must be restarted manually afterwards. | ✅ | ❌ |
 
@@ -156,7 +156,7 @@ src/
   commandLoader.js     Dynamic command discovery
   commands/
     server.js          /server start|stop|restart|status
-    trainadmin.js      /trainadmin add|remove|list
+    patreonadmin.js    /patreonadmin add|remove|list
     mod.js             /mod add|remove|list
     gameupdate.js      /gameupdate (runs GameUpdate.sh)
   lib/

@@ -1,8 +1,19 @@
-import { SlashCommandBuilder, MessageFlags, PermissionFlagsBits } from 'discord.js';
+import {
+  SlashCommandBuilder,
+  MessageFlags,
+  PermissionFlagsBits,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ComponentType,
+} from 'discord.js';
 import { runSystemctl } from '../lib/systemctl.js';
 import { postAudit } from '../lib/audit.js';
 import { ROLE } from '../lib/permissions.js';
 import { config } from '../config.js';
+
+const CONFIRM_TIMEOUT_MS = 15_000;
+const DESTRUCTIVE_SUBCOMMANDS = new Set(['stop', 'restart']);
 
 // Discord string-option choices are limited to 25 entries. We expect far fewer Squad instances
 // than that, but guard anyway: if more services are configured, fall back to free-text input and
@@ -70,6 +81,11 @@ export async function execute(interaction, { logger }) {
 
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
+  if (DESTRUCTIVE_SUBCOMMANDS.has(sub)) {
+    const confirmed = await confirmDestructive(interaction, sub, instance, logger);
+    if (!confirmed) return;
+  }
+
   const result = await runSystemctl(sub, instance);
   const combinedOutput = truncate([result.stdout, result.stderr].filter(Boolean).join('\n').trim(), 1800);
 
@@ -85,6 +101,47 @@ export async function execute(interaction, { logger }) {
     details: combinedOutput || `exit=${result.code}`,
     outcome: result.ok ? 'success' : 'failure',
   });
+}
+
+async function confirmDestructive(interaction, sub, instance, logger) {
+  const confirmId = `server:${sub}:${instance}:confirm:${interaction.id}`;
+  const cancelId = `server:${sub}:${instance}:cancel:${interaction.id}`;
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(confirmId).setLabel(`Yes, ${sub}`).setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(cancelId).setLabel('Cancel').setStyle(ButtonStyle.Secondary),
+  );
+
+  const message = await interaction.editReply({
+    content:
+      `⚠️ You are about to **${sub}** \`${instance}\`. ` +
+      `This will interrupt the running server. Confirm within ${CONFIRM_TIMEOUT_MS / 1000}s.`,
+    components: [row],
+  });
+
+  try {
+    const button = await message.awaitMessageComponent({
+      componentType: ComponentType.Button,
+      filter: (i) => i.user.id === interaction.user.id && (i.customId === confirmId || i.customId === cancelId),
+      time: CONFIRM_TIMEOUT_MS,
+    });
+
+    if (button.customId === cancelId) {
+      logger.info({ subcommand: sub, instance }, 'destructive action cancelled by user');
+      await button.update({ content: `❌ \`${sub}\` on \`${instance}\` cancelled.`, components: [] });
+      return false;
+    }
+
+    await button.update({ content: `⏳ Running \`${sub}\` on \`${instance}\`...`, components: [] });
+    return true;
+  } catch (err) {
+    logger.info({ subcommand: sub, instance, err: err?.message }, 'destructive action confirmation timed out');
+    await interaction.editReply({
+      content: `⏱️ Confirmation timed out. \`${sub}\` on \`${instance}\` not executed.`,
+      components: [],
+    });
+    return false;
+  }
 }
 
 function formatResult(sub, instance, result, output) {

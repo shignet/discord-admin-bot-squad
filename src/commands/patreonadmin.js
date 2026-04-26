@@ -11,7 +11,7 @@ import { ROLE } from '../lib/permissions.js';
 import { config } from '../config.js';
 
 export const data = new SlashCommandBuilder()
-  .setName('trainadmin')
+  .setName('patreonadmin')
   .setDescription('Manage members of the TrainAdmin group in Admins.cfg.')
   .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
   .setDMPermission(false)
@@ -92,7 +92,7 @@ async function handleAdd(interaction, logger, { type, value }, name) {
 
   await postAudit(interaction.client, {
     user: interaction.user,
-    action: `/trainadmin add`,
+    action: `/patreonadmin add`,
     details: `id=${value} type=${type} name=${name} group=${TRAIN_ADMINS_GROUP}\nbackup=${result.backupPath}`,
     outcome: 'success',
   });
@@ -122,7 +122,7 @@ async function handleRemove(interaction, logger, { type, value }) {
 
   await postAudit(interaction.client, {
     user: interaction.user,
-    action: `/trainadmin remove`,
+    action: `/patreonadmin remove`,
     details: `id=${value} type=${type} group=${TRAIN_ADMINS_GROUP}\nbackup=${result.backupPath}`,
     outcome: 'success',
   });
