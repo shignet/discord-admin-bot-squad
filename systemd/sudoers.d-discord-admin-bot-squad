@@ -22,10 +22,21 @@ discord ALL=(root) NOPASSWD: /bin/systemctl start squad-train.service, \
                              /bin/systemctl status squad-train.service, \
                              /bin/systemctl is-active squad-train.service
 
-# --- Squad game update script (/gameupdate command) ---
-# Exact path, no arguments. The bot invokes:
-#   execFile('/usr/bin/sudo', ['-n', '/opt/squad/Skripte/GameUpdate.sh'])
-discord ALL=(root) NOPASSWD: /opt/squad/Skripte/GameUpdate.sh ""
+# --- Squad game update (/gameupdate command) ---
+# The bot triggers a separate, unsandboxed systemd unit (squad-gameupdate.service)
+# instead of running GameUpdate.sh directly inside the bot's hardened service.
+# That avoids the read-only filesystem (ProtectSystem=strict) and the SIGSYS from
+# personality(PER_LINUX32) being blocked by LockPersonality=true on the bot service.
+#
+# Each argv combination is exact — no wildcards. The bot invokes:
+#   execFile('/usr/bin/sudo', ['-n', '/bin/systemctl', 'start', '--wait', 'squad-gameupdate.service'])
+#   execFile('/usr/bin/sudo', ['-n', '/bin/systemctl', 'show', '-p', 'ExecMainStatus', '--value', 'squad-gameupdate.service'])
+#   execFile('/usr/bin/sudo', ['-n', '/bin/systemctl', 'show', '-p', 'Result', '--value', 'squad-gameupdate.service'])
+#   execFile('/usr/bin/sudo', ['-n', '/bin/journalctl', '-u', 'squad-gameupdate.service', '-f', '-n', '0', '-o', 'cat'])
+discord ALL=(root) NOPASSWD: /bin/systemctl start --wait squad-gameupdate.service, \
+                             /bin/systemctl show -p ExecMainStatus --value squad-gameupdate.service, \
+                             /bin/systemctl show -p Result --value squad-gameupdate.service, \
+                             /bin/journalctl -u squad-gameupdate.service -f -n 0 -o cat
 
 # --- squad-public.service ---
 discord ALL=(root) NOPASSWD: /bin/systemctl start squad-public.service, \

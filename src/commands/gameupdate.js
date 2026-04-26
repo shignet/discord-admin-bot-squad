@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, MessageFlags, PermissionFlagsBits } from 'discord.js';
-import { runGameUpdate, GAME_UPDATE_SCRIPT } from '../lib/gameUpdate.js';
+import { runGameUpdate, GAME_UPDATE_UNIT } from '../lib/gameUpdate.js';
 import { postAudit } from '../lib/audit.js';
 import { ROLE } from '../lib/permissions.js';
 
@@ -19,7 +19,7 @@ const PROGRESS_TAIL_CHARS = 1500;
 export async function execute(interaction, { logger }) {
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-  logger.info({ script: GAME_UPDATE_SCRIPT }, 'Starting GameUpdate');
+  logger.info({ unit: GAME_UPDATE_UNIT }, 'Starting GameUpdate');
   const startedAt = Date.now();
 
   let latestStdout = '';

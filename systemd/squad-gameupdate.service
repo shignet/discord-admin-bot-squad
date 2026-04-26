@@ -1,0 +1,33 @@
+[Unit]
+Description=Squad GameUpdate (one-shot, triggered by discord-admin-bot)
+# Do not run while a Squad instance is starting up.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Run as root so the existing inner `sudo -u squad` calls in the script keep working.
+User=root
+Group=root
+
+# IMPORTANT: no ProtectSystem / LockPersonality / sandboxing here.
+# SteamCMD is i386 and needs personality(PER_LINUX32); the script writes to
+# /opt/squad/Log/. Both are blocked by the bot's hardened service. Running this
+# update unit as a separate, unsandboxed unit is the whole point of this split.
+
+ExecStart=/opt/squad/Skripte/GameUpdate.sh
+
+# Surface output via journald so the bot can stream it via journalctl.
+StandardOutput=journal
+StandardError=journal
+
+# Never auto-restart a one-shot update.
+Restart=no
+
+# Generous timeout to cover slow SteamCMD downloads. Must be >= the bot's
+# DEFAULT_TIMEOUT_MS in src/lib/gameUpdate.js.
+TimeoutStartSec=25min
+
+[Install]
+# Not enabled — the bot triggers it on demand via `systemctl start`.
+WantedBy=multi-user.target

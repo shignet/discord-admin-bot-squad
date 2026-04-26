@@ -10,7 +10,7 @@ Discord slash-command bot for administering Squad game server instances.
 | `/server` | `status` | `sudo systemctl status <instance>` | ✅ | ✅ |
 | `/patreonadmin` | `add` / `remove` / `list` | Edits `Admin=<id>:TrainAdmin` lines in `Admins.cfg` | ✅ | ✅ |
 | `/mod` | `add` / `remove` / `list` | Edits the `export DSG_MOD_LIST="…"` line in `config.sh` | ✅ | ❌ |
-| `/gameupdate` | — | `sudo /opt/squad/Skripte/GameUpdate.sh` — runs the Squad update script. Affected instance(s) must be restarted manually afterwards. | ✅ | ❌ |
+| `/gameupdate` | — | `sudo systemctl start --wait squad-gameupdate.service` — triggers the Squad update via a dedicated, unsandboxed systemd unit. Affected instance(s) must be restarted manually afterwards. | ✅ | ❌ |
 
 Player IDs accept **SteamID64** (`^7656119\d{10}$`) or **EOS ID** (`^[0-9a-f]{32}$`, lowercase only). Mod IDs accept digits only (`^\d{1,20}$`).
 
@@ -102,7 +102,18 @@ sudo install -m 0440 -o root -g root \
 sudo visudo -c           # must print "parsed OK"
 ```
 
-### 6. Install the systemd unit
+### 6. Install the systemd units
+
+The bot itself runs hardened (read-only `/opt`, `LockPersonality=true`). SteamCMD
+and the GameUpdate script can't run inside that sandbox, so `/gameupdate` triggers
+a separate, unsandboxed unit (`squad-gameupdate.service`) instead.
+
+```bash
+sudo install -m 0644 systemd/squad-gameupdate.service \
+  /etc/systemd/system/squad-gameupdate.service
+```
+
+
 
 ```bash
 sudo install -m 0644 systemd/discord-admin-bot-squad.service \
@@ -158,11 +169,11 @@ src/
     server.js          /server start|stop|restart|status
     patreonadmin.js    /patreonadmin add|remove|list
     mod.js             /mod add|remove|list
-    gameupdate.js      /gameupdate (runs GameUpdate.sh)
+    gameupdate.js      /gameupdate (triggers squad-gameupdate.service)
   lib/
     systemctl.js       execFile-based sudo/systemctl wrapper
     systemctlGuard.js  Allowlist gates for actions and unit names (pre-execFile)
-    gameUpdate.js      execFile-based wrapper for /opt/squad/Skripte/GameUpdate.sh
+    gameUpdate.js      Triggers squad-gameupdate.service and streams its journal
     adminsCfg.js       Admins.cfg reader/editor
     configSh.js        config.sh reader/editor (DSG_MOD_LIST line only)
     atomicFile.js      Atomic write + timestamped backups
@@ -172,6 +183,7 @@ src/
     logger.js          pino logger
 systemd/
   discord-admin-bot-squad.service
+  squad-gameupdate.service          Oneshot unit triggered by /gameupdate
   sudoers.d-discord-admin-bot-squad
 test/
   adminsCfg.test.js    Admins.cfg editor tests
