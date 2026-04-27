@@ -1,0 +1,24 @@
+# /etc/systemd/system/squad-gameupdate-master.service
+#
+# Oneshot service for downloading a new Squad version from Steam.
+# Runs UpdateMasterInstance.sh as the squad user (SteamCMD should run as squad).
+#
+# Usage (by the Discord bot via sudoers):
+#   systemctl start --wait squad-gameupdate-master.service
+
+[Unit]
+Description=Squad Master Update — SteamCMD
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=no
+User=squad
+Group=squad
+ExecStart=/opt/squad/Skripte/UpdateMasterInstance.sh
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=squad-gameupdate-master
+# SteamCMD can be slow — no timeout enforced here; the bot has its own 25-minute limit.
+TimeoutStartSec=0

@@ -1,0 +1,30 @@
+# /etc/systemd/system/squad-gameupdate@.service
+#
+# Template oneshot service for rebuilding a single Squad child instance.
+# The instance name (%i) is passed as the first argument to the script.
+#
+# Usage (by the Discord bot via sudoers):
+#   systemctl start --wait squad-gameupdate@public.service
+#   systemctl start --wait squad-gameupdate@train.service
+#   systemctl start --wait squad-gameupdate@supporter-train.service
+#
+# The service runs as root because UpdateInstanceFromMaster.sh needs to:
+#   - copy files (ionice cp -a)
+#   - chown -R squad:squad the destination directory
+#   - chmod +x the server binary
+
+[Unit]
+Description=Squad Instance Rebuild — %i
+# Prevent concurrent updates of the same instance.
+# Two separate instances (%i values) can run in parallel.
+After=network.target
+ConditionPathExists=/opt/squad/Configs/%i/config.sh
+
+[Service]
+Type=oneshot
+RemainAfterExit=no
+ExecStart=/opt/squad/Skripte/UpdateInstanceFromMaster.sh %i
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=squad-gameupdate@%i
+# No Restart — a failed update should stay visible in the journal.

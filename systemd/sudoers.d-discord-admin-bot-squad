@@ -7,36 +7,20 @@
 #   execFile('/usr/bin/sudo', ['-n', '/bin/systemctl', ACTION, SERVICE])
 # No wildcards, no shell metacharacters: every exact argv combination is explicitly whitelisted.
 #
-# Adding a new instance is a TWO-PLACE edit BY DESIGN:
-#   1. Append its 5 action lines here.
-#   2. Append the service name to SQUAD_SERVICES in the bot's .env.
-# The intentional friction makes it hard to accidentally grant the bot access to a production
-# instance without an explicit sudoers change.
+# /update command pattern — each instance update is a separate oneshot service:
+#   execFile('/usr/bin/sudo', ['-n', '/bin/systemctl', 'start', '--wait', 'squad-gameupdate@<n>.service'])
+#   execFile('/usr/bin/sudo', ['-n', '/bin/journalctl', '-u', 'squad-gameupdate@<n>.service', '-f', '-n', '0', '-o', 'cat'])
+#
+# Adding a new instance is a THREE-PLACE edit BY DESIGN:
+#   1. Add its /server lines below (5 lines).
+#   2. Add its /update lines below (2 lines).
+#   3. Append both the service name to SQUAD_SERVICES and the instance name to SQUAD_INSTANCES in .env.
 
 Defaults:discord !requiretty
 
-# --- squad-train.service (training instance) ---
-discord ALL=(root) NOPASSWD: /bin/systemctl start squad-train.service, \
-                             /bin/systemctl stop squad-train.service, \
-                             /bin/systemctl restart squad-train.service, \
-                             /bin/systemctl status squad-train.service, \
-                             /bin/systemctl is-active squad-train.service
-
-# --- Squad game update (/gameupdate command) ---
-# The bot triggers a separate, unsandboxed systemd unit (squad-gameupdate.service)
-# instead of running GameUpdate.sh directly inside the bot's hardened service.
-# That avoids the read-only filesystem (ProtectSystem=strict) and the SIGSYS from
-# personality(PER_LINUX32) being blocked by LockPersonality=true on the bot service.
-#
-# Each argv combination is exact — no wildcards. The bot invokes:
-#   execFile('/usr/bin/sudo', ['-n', '/bin/systemctl', 'start', '--wait', 'squad-gameupdate.service'])
-#   execFile('/usr/bin/sudo', ['-n', '/bin/systemctl', 'show', '-p', 'ExecMainStatus', '--value', 'squad-gameupdate.service'])
-#   execFile('/usr/bin/sudo', ['-n', '/bin/systemctl', 'show', '-p', 'Result', '--value', 'squad-gameupdate.service'])
-#   execFile('/usr/bin/sudo', ['-n', '/bin/journalctl', '-u', 'squad-gameupdate.service', '-f', '-n', '0', '-o', 'cat'])
-discord ALL=(root) NOPASSWD: /bin/systemctl start --wait squad-gameupdate.service, \
-                             /bin/systemctl show -p ExecMainStatus --value squad-gameupdate.service, \
-                             /bin/systemctl show -p Result --value squad-gameupdate.service, \
-                             /bin/journalctl -u squad-gameupdate.service -f -n 0 -o cat
+# =============================================================================
+# /server command — systemctl start/stop/restart/status/is-active
+# =============================================================================
 
 # --- squad-public.service ---
 discord ALL=(root) NOPASSWD: /bin/systemctl start squad-public.service, \
@@ -45,9 +29,42 @@ discord ALL=(root) NOPASSWD: /bin/systemctl start squad-public.service, \
                              /bin/systemctl status squad-public.service, \
                              /bin/systemctl is-active squad-public.service
 
+# --- squad-train.service ---
+discord ALL=(root) NOPASSWD: /bin/systemctl start squad-train.service, \
+                             /bin/systemctl stop squad-train.service, \
+                             /bin/systemctl restart squad-train.service, \
+                             /bin/systemctl status squad-train.service, \
+                             /bin/systemctl is-active squad-train.service
+
 # --- squad-supporter-train.service ---
 discord ALL=(root) NOPASSWD: /bin/systemctl start squad-supporter-train.service, \
                              /bin/systemctl stop squad-supporter-train.service, \
                              /bin/systemctl restart squad-supporter-train.service, \
                              /bin/systemctl status squad-supporter-train.service, \
                              /bin/systemctl is-active squad-supporter-train.service
+
+# =============================================================================
+# /update command — oneshot rebuild services (no stop/start of game servers)
+#
+# squad-gameupdate@<instance>.service  →  /update instance
+# squad-gameupdate-master.service      →  /update master
+#
+# Each pair: (1) start --wait blocks until the oneshot exits
+#            (2) journalctl -f streams live output to Discord
+# =============================================================================
+
+# --- /update master (SteamCMD) ---
+discord ALL=(root) NOPASSWD: /bin/systemctl start --wait squad-gameupdate-master.service
+discord ALL=(root) NOPASSWD: /bin/journalctl -u squad-gameupdate-master.service -f -n 0 -o cat
+
+# --- /update instance public ---
+discord ALL=(root) NOPASSWD: /bin/systemctl start --wait squad-gameupdate@public.service
+discord ALL=(root) NOPASSWD: /bin/journalctl -u squad-gameupdate@public.service -f -n 0 -o cat
+
+# --- /update instance train ---
+discord ALL=(root) NOPASSWD: /bin/systemctl start --wait squad-gameupdate@train.service
+discord ALL=(root) NOPASSWD: /bin/journalctl -u squad-gameupdate@train.service -f -n 0 -o cat
+
+# --- /update instance supporter-train ---
+discord ALL=(root) NOPASSWD: /bin/systemctl start --wait squad-gameupdate@supporter-train.service
+discord ALL=(root) NOPASSWD: /bin/journalctl -u squad-gameupdate@supporter-train.service -f -n 0 -o cat
