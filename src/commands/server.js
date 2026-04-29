@@ -6,9 +6,10 @@ import {
   ButtonBuilder,
   ButtonStyle,
   ComponentType,
+  EmbedBuilder,
 } from 'discord.js';
 import { runSystemctl } from '../lib/systemctl.js';
-import { postAudit } from '../lib/audit.js';
+import { respondViaAudit, COLOR } from '../lib/audit.js';
 import { ROLE } from '../lib/permissions.js';
 import { buildStatusEmbed } from '../lib/statusFormat.js';
 import { config } from '../config.js';
@@ -88,29 +89,22 @@ export async function execute(interaction, { logger }) {
   }
 
   const result = await runSystemctl(sub, instance);
-  const combinedOutput = truncate([result.stdout, result.stderr].filter(Boolean).join('\n').trim(), 1800);
+  const combinedOutput = truncate([result.stdout, result.stderr].filter(Boolean).join('\n').trim(), 1500);
 
   logger.info({ subcommand: sub, instance, ok: result.ok, code: result.code }, 'systemctl executed');
 
   if (sub === 'status') {
     const embed = buildStatusEmbed({
-      commandLabel: 'Squad server',
+      commandLabel: `/server status`,
       instance,
       raw: [result.stdout, result.stderr].filter(Boolean).join('\n'),
     });
-    await interaction.editReply({ content: '', embeds: [embed] });
-  } else {
-    await interaction.editReply({
-      content: formatResult(sub, instance, result, combinedOutput),
-    });
+    await respondViaAudit(interaction, embed);
+    return;
   }
 
-  await postAudit(interaction.client, {
-    user: interaction.user,
-    action: `/server ${sub} \u2014 ${instance}`,
-    details: combinedOutput || `exit=${result.code}`,
-    outcome: result.ok ? 'success' : 'failure',
-  });
+  const embed = buildActionEmbed({ command: '/server', sub, target: instance, result, output: combinedOutput });
+  await respondViaAudit(interaction, embed);
 }
 
 async function confirmDestructive(interaction, sub, instance, logger) {
@@ -154,12 +148,17 @@ async function confirmDestructive(interaction, sub, instance, logger) {
   }
 }
 
-function formatResult(sub, instance, result, output) {
-  const header = result.ok
-    ? `\u2705 \`${sub}\` executed on ${instance}`
-    : `\u274c \`${sub}\` failed on ${instance} (exit ${result.code})`;
-  if (!output) return header;
-  return `${header}\n\`\`\`\n${output}\n\`\`\``;
+function buildActionEmbed({ command, sub, target, result, output }) {
+  const ok = result.ok;
+  const emoji = ok ? '✅' : '❌';
+  const embed = new EmbedBuilder()
+    .setColor(ok ? COLOR.success : COLOR.failure)
+    .setTitle(`${emoji} ${command} ${sub} — ${target}`)
+    .setDescription(ok ? `\`${sub}\` executed successfully.` : `\`${sub}\` failed (exit ${result.code}).`);
+  if (output) {
+    embed.addFields({ name: 'Output', value: '```\n' + output + '\n```' });
+  }
+  return embed;
 }
 
 function truncate(text, max) {

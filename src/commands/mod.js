@@ -1,7 +1,7 @@
-import { SlashCommandBuilder, MessageFlags, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
 import { isValidModId, INVALID_MOD_ID_MESSAGE } from '../lib/validation.js';
 import { addMod, removeMod, listMods } from '../lib/configSh.js';
-import { postAudit } from '../lib/audit.js';
+import { respondViaAudit, COLOR } from '../lib/audit.js';
 import { ROLE } from '../lib/permissions.js';
 import { config } from '../config.js';
 
@@ -48,28 +48,32 @@ export async function execute(interaction, { logger }) {
   if (sub === 'remove') return handleRemove(interaction, logger, modId);
 }
 
+const RESTART_NOTE = `A restart of the \`${config.squadService}\` instance is required for the change to take effect.`;
+
 async function handleAdd(interaction, logger, modId) {
   const result = await addMod(config.paths.configSh, modId);
 
   if (!result.changed) {
     logger.info({ modId, reason: result.reason }, 'mod add: no change');
-    await interaction.editReply({ content: `Mod \`${modId}\` is already in DSG_MOD_LIST. No change.` });
+    const embed = new EmbedBuilder()
+      .setColor(COLOR.info)
+      .setTitle(`ℹ️ /mod add — ${modId}`)
+      .setDescription(`Mod \`${modId}\` is already in \`DSG_MOD_LIST\`. No change.`);
+    await respondViaAudit(interaction, embed);
     return;
   }
 
   logger.info({ modId, count: result.mods.length, backupPath: result.backupPath }, 'mod added');
-  await interaction.editReply({
-    content:
-      `\u2705 Added mod \`${modId}\`. DSG_MOD_LIST now has ${result.mods.length} entries.\n` +
-      `\u26a0\ufe0f A restart of the \`${config.squadService}\` instance is required for the change to take effect.`,
-  });
-
-  await postAudit(interaction.client, {
-    user: interaction.user,
-    action: '/mod add',
-    details: `modId=${modId}\nnewCount=${result.mods.length}\nbackup=${result.backupPath}`,
-    outcome: 'success',
-  });
+  const embed = new EmbedBuilder()
+    .setColor(COLOR.success)
+    .setTitle(`✅ /mod add — ${modId}`)
+    .setDescription(`Mod \`${modId}\` added to \`DSG_MOD_LIST\`.`)
+    .addFields(
+      { name: 'New count', value: String(result.mods.length), inline: true },
+      { name: 'Backup', value: '`' + result.backupPath + '`', inline: false },
+      { name: '⚠️ Action required', value: RESTART_NOTE },
+    );
+  await respondViaAudit(interaction, embed);
 }
 
 async function handleRemove(interaction, logger, modId) {
@@ -77,38 +81,41 @@ async function handleRemove(interaction, logger, modId) {
 
   if (!result.changed) {
     logger.info({ modId, reason: result.reason }, 'mod remove: no change');
-    await interaction.editReply({ content: `Mod \`${modId}\` is not in DSG_MOD_LIST. No change.` });
+    const embed = new EmbedBuilder()
+      .setColor(COLOR.info)
+      .setTitle(`ℹ️ /mod remove — ${modId}`)
+      .setDescription(`Mod \`${modId}\` is not in \`DSG_MOD_LIST\`. No change.`);
+    await respondViaAudit(interaction, embed);
     return;
   }
 
   logger.info({ modId, count: result.mods.length, backupPath: result.backupPath }, 'mod removed');
-  await interaction.editReply({
-    content:
-      `\u2705 Removed mod \`${modId}\`. DSG_MOD_LIST now has ${result.mods.length} entries.\n` +
-      `\u26a0\ufe0f A restart of the \`${config.squadService}\` instance is required for the change to take effect.`,
-  });
-
-  await postAudit(interaction.client, {
-    user: interaction.user,
-    action: '/mod remove',
-    details: `modId=${modId}\nnewCount=${result.mods.length}\nbackup=${result.backupPath}`,
-    outcome: 'success',
-  });
+  const embed = new EmbedBuilder()
+    .setColor(COLOR.success)
+    .setTitle(`✅ /mod remove — ${modId}`)
+    .setDescription(`Mod \`${modId}\` removed from \`DSG_MOD_LIST\`.`)
+    .addFields(
+      { name: 'New count', value: String(result.mods.length), inline: true },
+      { name: 'Backup', value: '`' + result.backupPath + '`', inline: false },
+      { name: '⚠️ Action required', value: RESTART_NOTE },
+    );
+  await respondViaAudit(interaction, embed);
 }
 
 async function handleList(interaction, logger) {
   const mods = await listMods(config.paths.configSh);
   logger.info({ count: mods.length }, 'mod list');
 
-  if (mods.length === 0) {
-    await interaction.editReply({ content: 'DSG_MOD_LIST is empty.' });
-    return;
-  }
+  const embed = new EmbedBuilder()
+    .setColor(COLOR.info)
+    .setTitle(`📜 DSG_MOD_LIST (${mods.length})`);
 
-  const body = mods.map((id, i) => `${i + 1}. \`${id}\``).join('\n');
-  const MAX = 1900;
-  const content =
-    `**DSG_MOD_LIST** (${mods.length}):\n` +
-    (body.length > MAX ? `${body.slice(0, MAX - 3)}...` : body);
-  await interaction.editReply({ content });
+  if (mods.length === 0) {
+    embed.setDescription('_(empty)_');
+  } else {
+    const body = mods.map((id, i) => `${i + 1}. \`${id}\``).join('\n');
+    const MAX = 3800;
+    embed.setDescription(body.length > MAX ? `${body.slice(0, MAX - 3)}...` : body);
+  }
+  await respondViaAudit(interaction, embed);
 }

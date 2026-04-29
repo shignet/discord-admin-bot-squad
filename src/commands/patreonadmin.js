@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, MessageFlags, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
 import {
   classifyPlayerId,
   sanitizeAdminName,
@@ -6,7 +6,7 @@ import {
   INVALID_ADMIN_NAME_MESSAGE,
 } from '../lib/validation.js';
 import { addTrainAdmin, removeTrainAdmin, listTrainAdmin, TRAIN_ADMINS_GROUP } from '../lib/adminsCfg.js';
-import { postAudit } from '../lib/audit.js';
+import { respondViaAudit, COLOR } from '../lib/audit.js';
 import { ROLE } from '../lib/permissions.js';
 import { config } from '../config.js';
 
@@ -43,6 +43,8 @@ export const data = new SlashCommandBuilder()
 // Senior and regular admins may both manage TrainAdmin.
 export const requiredRoles = [ROLE.SENIOR_ADMIN, ROLE.ADMIN];
 
+const RESTART_NOTE = `A restart of the \`${config.squadService}\` instance is required for the change to take effect.`;
+
 export async function execute(interaction, { logger }) {
   const sub = interaction.options.getSubcommand();
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -77,25 +79,24 @@ async function handleAdd(interaction, logger, { type, value }, name) {
 
   if (!result.changed) {
     logger.info({ id: value, type, reason: result.reason }, 'trainadmin add: no change');
-    await interaction.editReply({
-      content: `ID \`${value}\` (${type}) is already a TrainAdmin. No change.`,
-    });
+    const embed = new EmbedBuilder()
+      .setColor(COLOR.info)
+      .setTitle(`ℹ️ /patreonadmin add — ${value}`)
+      .setDescription(`ID \`${value}\` (${type}) is already a TrainAdmin. No change.`);
+    await respondViaAudit(interaction, embed);
     return;
   }
 
   logger.info({ id: value, type, name, backupPath: result.backupPath }, 'trainadmin added');
-  await interaction.editReply({
-    content:
-      `\u2705 Added \`${value}\` (${type}) as \`${name}\` to group \`${TRAIN_ADMINS_GROUP}\`.\n` +
-      `\u26a0\ufe0f A restart of the \`${config.squadService}\` instance is required for the change to take effect.`,
-  });
-
-  await postAudit(interaction.client, {
-    user: interaction.user,
-    action: `/patreonadmin add`,
-    details: `id=${value} type=${type} name=${name} group=${TRAIN_ADMINS_GROUP}\nbackup=${result.backupPath}`,
-    outcome: 'success',
-  });
+  const embed = new EmbedBuilder()
+    .setColor(COLOR.success)
+    .setTitle(`✅ /patreonadmin add — ${name}`)
+    .setDescription(`Added \`${value}\` (${type}) as \`${name}\` to group \`${TRAIN_ADMINS_GROUP}\`.`)
+    .addFields(
+      { name: 'Backup', value: '`' + result.backupPath + '`' },
+      { name: '⚠️ Action required', value: RESTART_NOTE },
+    );
+  await respondViaAudit(interaction, embed);
 }
 
 async function handleRemove(interaction, logger, { type, value }) {
@@ -103,9 +104,11 @@ async function handleRemove(interaction, logger, { type, value }) {
 
   if (!result.changed) {
     logger.info({ id: value, type, reason: result.reason }, 'trainadmin remove: no change');
-    await interaction.editReply({
-      content: `ID \`${value}\` (${type}) is not a TrainAdmin. No change.`,
-    });
+    const embed = new EmbedBuilder()
+      .setColor(COLOR.info)
+      .setTitle(`ℹ️ /patreonadmin remove — ${value}`)
+      .setDescription(`ID \`${value}\` (${type}) is not a TrainAdmin. No change.`);
+    await respondViaAudit(interaction, embed);
     return;
   }
 
@@ -113,34 +116,32 @@ async function handleRemove(interaction, logger, { type, value }) {
     { id: value, type, removedCount: result.removedCount, backupPath: result.backupPath },
     'trainadmin removed',
   );
-  await interaction.editReply({
-    content:
-      `\u2705 Removed \`${value}\` (${type}) from group \`${TRAIN_ADMINS_GROUP}\` ` +
-      `(${result.removedCount} line${result.removedCount === 1 ? '' : 's'}).\n` +
-      `\u26a0\ufe0f A restart of the \`${config.squadService}\` instance is required for the change to take effect.`,
-  });
-
-  await postAudit(interaction.client, {
-    user: interaction.user,
-    action: `/patreonadmin remove`,
-    details: `id=${value} type=${type} group=${TRAIN_ADMINS_GROUP}\nbackup=${result.backupPath}`,
-    outcome: 'success',
-  });
+  const lineWord = result.removedCount === 1 ? 'line' : 'lines';
+  const embed = new EmbedBuilder()
+    .setColor(COLOR.success)
+    .setTitle(`✅ /patreonadmin remove — ${value}`)
+    .setDescription(`Removed \`${value}\` (${type}) from group \`${TRAIN_ADMINS_GROUP}\` (${result.removedCount} ${lineWord}).`)
+    .addFields(
+      { name: 'Backup', value: '`' + result.backupPath + '`' },
+      { name: '⚠️ Action required', value: RESTART_NOTE },
+    );
+  await respondViaAudit(interaction, embed);
 }
 
 async function handleList(interaction, logger) {
   const entries = await listTrainAdmin(config.paths.adminsCfg);
   logger.info({ count: entries.length }, 'trainadmin list');
 
-  if (entries.length === 0) {
-    await interaction.editReply({ content: `No entries in group \`${TRAIN_ADMINS_GROUP}\`.` });
-    return;
-  }
+  const embed = new EmbedBuilder()
+    .setColor(COLOR.info)
+    .setTitle(`📜 ${TRAIN_ADMINS_GROUP} (${entries.length})`);
 
-  const body = entries.map((e, i) => `${i + 1}. \`${e.id}\` (${e.idType})`).join('\n');
-  const MAX = 1900;
-  const content =
-    `**${TRAIN_ADMINS_GROUP}** (${entries.length}):\n` +
-    (body.length > MAX ? `${body.slice(0, MAX - 3)}...` : body);
-  await interaction.editReply({ content });
+  if (entries.length === 0) {
+    embed.setDescription('_(no entries)_');
+  } else {
+    const body = entries.map((e, i) => `${i + 1}. \`${e.id}\` (${e.idType})`).join('\n');
+    const MAX = 3800;
+    embed.setDescription(body.length > MAX ? `${body.slice(0, MAX - 3)}...` : body);
+  }
+  await respondViaAudit(interaction, embed);
 }

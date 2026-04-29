@@ -6,9 +6,10 @@ import {
   ButtonBuilder,
   ButtonStyle,
   ComponentType,
+  EmbedBuilder,
 } from 'discord.js';
 import { runSystemctl } from '../lib/systemctl.js';
-import { postAudit } from '../lib/audit.js';
+import { respondViaAudit, COLOR } from '../lib/audit.js';
 import { ROLE } from '../lib/permissions.js';
 import { buildStatusEmbed } from '../lib/statusFormat.js';
 import { config } from '../config.js';
@@ -91,29 +92,35 @@ export async function execute(interaction, { logger }) {
   }
 
   const result = await runSystemctl(sub, service, config.auxServices);
-  const combinedOutput = truncate([result.stdout, result.stderr].filter(Boolean).join('\n').trim(), 1800);
+  const combinedOutput = truncate([result.stdout, result.stderr].filter(Boolean).join('\n').trim(), 1500);
 
   logger.info({ subcommand: sub, service, ok: result.ok, code: result.code }, 'systemctl executed (aux)');
 
   if (sub === 'status') {
     const embed = buildStatusEmbed({
-      commandLabel: 'Service',
+      commandLabel: `/service status`,
       instance: service,
       raw: [result.stdout, result.stderr].filter(Boolean).join('\n'),
     });
-    await interaction.editReply({ content: '', embeds: [embed] });
-  } else {
-    await interaction.editReply({
-      content: formatResult(sub, service, result, combinedOutput),
-    });
+    await respondViaAudit(interaction, embed);
+    return;
   }
 
-  await postAudit(interaction.client, {
-    user: interaction.user,
-    action: `/service ${sub} — ${service}`,
-    details: combinedOutput || `exit=${result.code}`,
-    outcome: result.ok ? 'success' : 'failure',
-  });
+  const embed = buildActionEmbed({ command: '/service', sub, target: service, result, output: combinedOutput });
+  await respondViaAudit(interaction, embed);
+}
+
+function buildActionEmbed({ command, sub, target, result, output }) {
+  const ok = result.ok;
+  const emoji = ok ? '✅' : '❌';
+  const embed = new EmbedBuilder()
+    .setColor(ok ? COLOR.success : COLOR.failure)
+    .setTitle(`${emoji} ${command} ${sub} — ${target}`)
+    .setDescription(ok ? `\`${sub}\` executed successfully.` : `\`${sub}\` failed (exit ${result.code}).`);
+  if (output) {
+    embed.addFields({ name: 'Output', value: '```\n' + output + '\n```' });
+  }
+  return embed;
 }
 
 async function confirmDestructive(interaction, sub, service, logger) {
@@ -155,14 +162,6 @@ async function confirmDestructive(interaction, sub, service, logger) {
     });
     return false;
   }
-}
-
-function formatResult(sub, service, result, output) {
-  const header = result.ok
-    ? `✅ \`${sub}\` executed on ${service}`
-    : `❌ \`${sub}\` failed on ${service} (exit ${result.code})`;
-  if (!output) return header;
-  return `${header}\n\`\`\`\n${output}\n\`\`\``;
 }
 
 function truncate(text, max) {

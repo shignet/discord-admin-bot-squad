@@ -14,10 +14,11 @@ import {
   ButtonBuilder,
   ButtonStyle,
   ComponentType,
+  EmbedBuilder,
 } from 'discord.js';
 import { startInstanceUpdate, startMasterUpdate, spawnLogFollow } from '../lib/gameupdate.js';
 import { runSystemctl } from '../lib/systemctl.js';
-import { postAudit } from '../lib/audit.js';
+import { respondViaAudit, COLOR } from '../lib/audit.js';
 import { ROLE } from '../lib/permissions.js';
 import { config } from '../config.js';
 
@@ -84,7 +85,7 @@ export async function execute(interaction, { logger }) {
 // ---------------------------------------------------------------------------
 
 async function executeMaster(interaction, logger) {
-  await interaction.deferReply();
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   await interaction.editReply('⏳ Starting SteamCMD update of master instance…');
 
   const { result, logLines } = await runWithLiveLogs(
@@ -96,14 +97,7 @@ async function executeMaster(interaction, logger) {
 
   logger.info({ ok: result.ok, code: result.code }, '/update master finished');
 
-  await interaction.editReply(buildFinalMessage('master', result, logLines, null));
-
-  await postAudit(interaction.client, {
-    user: interaction.user,
-    action: '/update master',
-    details: auditDetails(result, logLines),
-    outcome: result.ok ? 'success' : 'failure',
-  });
+  await respondViaAudit(interaction, buildUpdateEmbed('/update master', 'master', result, logLines, null));
 }
 
 // ---------------------------------------------------------------------------
@@ -122,7 +116,7 @@ async function executeInstance(interaction, logger) {
     return;
   }
 
-  await interaction.deferReply();
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   // Warn if the corresponding server service is still running.
   const runningService = `squad-${target}.service`;
@@ -150,14 +144,10 @@ async function executeInstance(interaction, logger) {
 
   logger.info({ target, ok: result.ok, code: result.code }, '/update instance finished');
 
-  await interaction.editReply(buildFinalMessage(target, result, logLines, runningService));
-
-  await postAudit(interaction.client, {
-    user: interaction.user,
-    action: `/update instance — ${target}`,
-    details: auditDetails(result, logLines),
-    outcome: result.ok ? 'success' : 'failure',
-  });
+  await respondViaAudit(
+    interaction,
+    buildUpdateEmbed(`/update instance — ${target}`, target, result, logLines, runningService),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -165,7 +155,7 @@ async function executeInstance(interaction, logger) {
 // ---------------------------------------------------------------------------
 
 async function executeAllInstances(interaction, logger) {
-  await interaction.deferReply();
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   const confirmed = await confirmAllInstances(interaction);
   if (!confirmed) return;
@@ -201,23 +191,17 @@ async function executeAllInstances(interaction, logger) {
 
   const allOk = results.every((r) => r.result.ok);
   const summary = results.map(formatSummaryLine).join('\n');
-  const restartNote = allOk
-    ? '\n\n💡 Use `/server restart` for each instance when you are ready to apply the update.'
-    : '';
-
-  await interaction.editReply(
-    (allOk ? '✅ **All instances rebuilt.**' : '⚠️ **Some instances failed.**') +
-      '\n' +
-      summary +
-      restartNote,
-  );
-
-  await postAudit(interaction.client, {
-    user: interaction.user,
-    action: '/update all_instances',
-    details: results.map((r) => `${r.instance}:${r.result.ok ? 'ok' : 'FAIL'}`).join(' | '),
-    outcome: allOk ? 'success' : 'failure',
-  });
+  const embed = new EmbedBuilder()
+    .setColor(allOk ? COLOR.success : COLOR.failure)
+    .setTitle(allOk ? '✅ /update all_instances — all rebuilt' : '⚠️ /update all_instances — some failed')
+    .setDescription(summary);
+  if (allOk) {
+    embed.addFields({
+      name: '💡 Next step',
+      value: 'Use `/server restart` for each instance when you are ready to apply the update.',
+    });
+  }
+  await respondViaAudit(interaction, embed);
 }
 
 // ---------------------------------------------------------------------------
@@ -280,29 +264,33 @@ async function runWithLiveLogs(updateFn, serviceUnit, label, interaction) {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function buildFinalMessage(label, result, logLines, restartService) {
-  const header = result.ok
-    ? `✅ **\`${label}\`** rebuilt successfully.`
-    : `❌ **\`${label}\`** failed (exit ${result.code}).`;
+function buildUpdateEmbed(title, label, result, logLines, restartService) {
+  const ok = result.ok;
+  const embed = new EmbedBuilder()
+    .setColor(ok ? COLOR.success : COLOR.failure)
+    .setTitle(`${ok ? '✅' : '❌'} ${title}`)
+    .setDescription(
+      ok
+        ? `\`${label}\` rebuilt successfully.`
+        : `\`${label}\` failed (exit ${result.code}).`,
+    );
 
   const lastLines = logLines.slice(-15).join('\n');
-  const logBlock = lastLines ? `\n\`\`\`\n${truncate(lastLines, 1_400)}\n\`\`\`` : '';
+  if (lastLines) {
+    embed.addFields({ name: 'Recent log', value: '```\n' + truncate(lastLines, 1_000) + '\n```' });
+  }
 
-  const footer =
-    result.ok && restartService
-      ? `\n\n💡 Use \`/server restart\` → \`${restartService}\` when you are ready to apply the update.`
-      : '';
-
-  return header + logBlock + footer;
+  if (ok && restartService) {
+    embed.addFields({
+      name: '💡 Next step',
+      value: `Use \`/server restart\` → \`${restartService}\` when you are ready to apply the update.`,
+    });
+  }
+  return embed;
 }
 
 function formatSummaryLine({ instance, result }) {
   return result.ok ? `✅ \`${instance}\`` : `❌ \`${instance}\` (exit ${result.code})`;
-}
-
-function auditDetails(result, logLines) {
-  const last = logLines.slice(-3).join(' | ');
-  return last || `exit=${result.code}`;
 }
 
 async function confirmAllInstances(interaction) {
