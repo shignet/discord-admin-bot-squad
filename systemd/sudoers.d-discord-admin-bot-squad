@@ -15,6 +15,10 @@
 #   1. Add its /server lines below (5 lines).
 #   2. Add its /update lines below (2 lines).
 #   3. Append both the service name to SQUAD_SERVICES and the instance name to SQUAD_INSTANCES in .env.
+#
+# Adding a new auxiliary service for /service is a TWO-PLACE edit:
+#   1. Add a 5-line block in the /service section below.
+#   2. Append the service name to AUX_SERVICES in .env.
 
 Defaults:discord !requiretty
 
@@ -68,3 +72,22 @@ discord ALL=(root) NOPASSWD: /bin/journalctl -u squad-gameupdate@train.service -
 # --- /update instance supporter-train ---
 discord ALL=(root) NOPASSWD: /bin/systemctl start --wait squad-gameupdate@supporter-train.service
 discord ALL=(root) NOPASSWD: /bin/journalctl -u squad-gameupdate@supporter-train.service -f -n 0 -o cat
+
+# =============================================================================
+# /service command — auxiliary daemons (SquadJS, whitelister, …)
+# Same allowed actions as /server: start/stop/restart/status/is-active.
+# =============================================================================
+
+# --- squadjs-public.service ---
+discord ALL=(root) NOPASSWD: /bin/systemctl start squadjs-public.service, \
+                             /bin/systemctl stop squadjs-public.service, \
+                             /bin/systemctl restart squadjs-public.service, \
+                             /bin/systemctl status squadjs-public.service, \
+                             /bin/systemctl is-active squadjs-public.service
+
+# --- whitelister.service ---
+discord ALL=(root) NOPASSWD: /bin/systemctl start whitelister.service, \
+                             /bin/systemctl stop whitelister.service, \
+                             /bin/systemctl restart whitelister.service, \
+                             /bin/systemctl status whitelister.service, \
+                             /bin/systemctl is-active whitelister.service

@@ -8,9 +8,9 @@ const execFileAsync = promisify(execFile);
 const MAX_OUTPUT_BYTES = 64 * 1024;
 const DEFAULT_TIMEOUT_MS = 15_000;
 
-export async function runSystemctl(action, service) {
+export async function runSystemctl(action, service, allowedServices = config.squadServices) {
   assertAllowedAction(action);
-  assertAllowedService(service, config.squadServices);
+  assertAllowedService(service, allowedServices);
 
   // execFile with an argument array — no shell, no interpolation, no injection surface.
   // The sudoers file restricts this user to exactly the combinations we also validate here.

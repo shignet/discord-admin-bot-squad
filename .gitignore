@@ -18,3 +18,5 @@ npm-debug.log*
 .vscode/
 *.swp
 Thumbs.db
+.claude/
+CLAUDE.md

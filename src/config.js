@@ -38,6 +38,18 @@ function requireServiceList(name) {
   }
 }
 
+// Optional service list. Returns a frozen empty array when unset/empty so the related
+// command stays defined but rejects every input via the empty allowlist.
+function optionalServiceList(name) {
+  const value = process.env[name];
+  if (value === undefined || value.trim() === '') return Object.freeze([]);
+  try {
+    return parseServiceList(value);
+  } catch (err) {
+    throw new Error(`Environment variable ${name}: ${err.message}`);
+  }
+}
+
 // [NEW] Parses SQUAD_INSTANCES (comma-separated instance names, e.g. "public,train,supporter-train")
 function requireInstanceList(name) {
   const value = required(name);
@@ -61,6 +73,7 @@ export const config = Object.freeze({
   auditChannelId: requireSnowflake('AUDIT_CHANNEL_ID'),
   squadServices: requireServiceList('SQUAD_SERVICES'),
   squadInstances: requireInstanceList('SQUAD_INSTANCES'), // [NEW]
+  auxServices: optionalServiceList('AUX_SERVICES'),
   paths: {
     adminsCfg: requireAbsolutePath('ADMINS_CFG_PATH'),
     configSh: requireAbsolutePath('CONFIG_SH_PATH'),
