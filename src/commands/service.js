@@ -10,6 +10,7 @@ import {
 import { runSystemctl } from '../lib/systemctl.js';
 import { postAudit } from '../lib/audit.js';
 import { ROLE } from '../lib/permissions.js';
+import { buildStatusEmbed } from '../lib/statusFormat.js';
 import { config } from '../config.js';
 
 const CONFIRM_TIMEOUT_MS = 15_000;
@@ -94,9 +95,18 @@ export async function execute(interaction, { logger }) {
 
   logger.info({ subcommand: sub, service, ok: result.ok, code: result.code }, 'systemctl executed (aux)');
 
-  await interaction.editReply({
-    content: formatResult(sub, service, result, combinedOutput),
-  });
+  if (sub === 'status') {
+    const embed = buildStatusEmbed({
+      commandLabel: 'Service',
+      instance: service,
+      raw: [result.stdout, result.stderr].filter(Boolean).join('\n'),
+    });
+    await interaction.editReply({ content: '', embeds: [embed] });
+  } else {
+    await interaction.editReply({
+      content: formatResult(sub, service, result, combinedOutput),
+    });
+  }
 
   await postAudit(interaction.client, {
     user: interaction.user,
