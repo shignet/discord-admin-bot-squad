@@ -21,6 +21,23 @@ function requireSnowflake(name) {
   return value;
 }
 
+function requireSnowflakeList(name) {
+  const value = required(name);
+  const ids = value
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  if (ids.length === 0) {
+    throw new Error(`Environment variable ${name} must contain at least one Discord snowflake`);
+  }
+  for (const id of ids) {
+    if (!SNOWFLAKE.test(id)) {
+      throw new Error(`Environment variable ${name} contains an invalid Discord snowflake: ${id}`);
+    }
+  }
+  return Object.freeze([...new Set(ids)]);
+}
+
 function requireAbsolutePath(name) {
   const value = required(name);
   if (!path.isAbsolute(value)) {
@@ -67,8 +84,8 @@ export const config = Object.freeze({
     guildId: requireSnowflake('DISCORD_GUILD_ID'),
   },
   roles: {
-    seniorAdminId: requireSnowflake('SENIOR_ADMIN_ROLE_ID'),
-    adminId: requireSnowflake('ADMIN_ROLE_ID'),
+    seniorAdminIds: requireSnowflakeList('SENIOR_ADMIN_ROLE_ID'),
+    adminIds: requireSnowflakeList('ADMIN_ROLE_ID'),
   },
   auditChannelId: requireSnowflake('AUDIT_CHANNEL_ID'),
   squadServices: requireServiceList('SQUAD_SERVICES'),

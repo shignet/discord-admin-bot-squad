@@ -55,7 +55,7 @@ export const requiredRoles = [];
 
 export async function execute(interaction, { logger }) {
   const sub = interaction.options.getSubcommand();
-  const allowed = SUBCOMMAND_ROLES[sub] ?? [];
+  const allowed = (SUBCOMMAND_ROLES[sub] ?? []).flat();
   const memberRoles = interaction.member.roles.cache;
   const hasRole = allowed.some((roleId) => memberRoles.has(roleId));
   if (!hasRole) {

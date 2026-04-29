@@ -140,8 +140,8 @@ See [`.env.example`](./.env.example). All values are required unless explicitly 
 | `DISCORD_TOKEN` | Bot token (keep secret) |
 | `DISCORD_CLIENT_ID` | Application ID — used when registering guild commands |
 | `DISCORD_GUILD_ID` | The single guild the bot serves |
-| `SENIOR_ADMIN_ROLE_ID` | Role that may control the server and edit mods |
-| `ADMIN_ROLE_ID` | Role that may edit TrainAdmin and view status |
+| `SENIOR_ADMIN_ROLE_ID` | Role(s) that may control the server and edit mods. One ID, or comma-separated for multiple roles (any match grants access) |
+| `ADMIN_ROLE_ID` | Role(s) that may edit TrainAdmin and view status. One ID, or comma-separated for multiple roles (any match grants access) |
 | `AUDIT_CHANNEL_ID` | Channel that receives one embed per executed command |
 | `SQUAD_SERVICES` | Comma-separated list of systemd unit names. Each entry must also be whitelisted in `/etc/sudoers.d/discord-admin-bot-squad` |
 | `ADMINS_CFG_PATH` | Absolute path to the supporter-train `Admins.cfg` |
