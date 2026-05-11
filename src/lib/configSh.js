@@ -1,16 +1,28 @@
 import { readText, writeAtomicWithBackup } from './atomicFile.js';
 import { isValidModId, MOD_ID } from './validation.js';
 
-// Targets lines shaped like:  export DSG_MOD_LIST="id1 id2 id3"
-// Anchored, whole-line match. Only the inner quoted content is captured.
-const MOD_LIST_LINE = /^(\s*export\s+DSG_MOD_LIST\s*=\s*")([^"\r\n]*)(".*)$/;
+// Targets lines shaped like:
+//   export DSG_MOD_LIST="id1 id2 id3"
+//   export DSG_MOD_LIST='id1 id2'
+//   export DSG_MOD_LIST=                (empty, unquoted)
+//   export DSG_MOD_LIST=id1             (single unquoted token)
+// Captures: 1=leading ws, 2=double-quoted inner, 3=single-quoted inner,
+// 4=unquoted token, 5=trailing (whitespace and optional comment).
+const MOD_LIST_LINE =
+  /^(\s*)export\s+DSG_MOD_LIST\s*=\s*(?:"([^"\r\n]*)"|'([^'\r\n]*)'|([^\s#"'\r\n]*))(\s*(?:#.*)?)$/;
 
 function findModListLine(lines) {
   for (let i = 0; i < lines.length; i += 1) {
     const m = lines[i].match(MOD_LIST_LINE);
-    if (m) return { index: i, prefix: m[1], inner: m[2], suffix: m[3] };
+    if (!m) continue;
+    const inner = m[2] ?? m[3] ?? m[4] ?? '';
+    return { index: i, leading: m[1], inner, trailing: m[5] ?? '' };
   }
   return null;
+}
+
+function renderLine(leading, ids, trailing) {
+  return `${leading}export DSG_MOD_LIST="${ids.join(' ')}"${trailing}`;
 }
 
 function parseInner(inner) {
@@ -59,7 +71,7 @@ export async function addMod(filePath, id) {
   // Defense in depth: re-validate every value we're about to write.
   assertAllValid(next);
 
-  lines[match.index] = `${match.prefix}${next.join(' ')}${match.suffix}`;
+  lines[match.index] = renderLine(match.leading, next, match.trailing);
   const newContent = lines.join('\n') + (trailingNewline ? '\n' : '\n');
   const backupPath = await writeAtomicWithBackup(filePath, newContent);
   return { changed: true, mods: next, backupPath };
@@ -84,7 +96,7 @@ export async function removeMod(filePath, id) {
   const next = current.filter((m) => m !== id);
   assertAllValid(next);
 
-  lines[match.index] = `${match.prefix}${next.join(' ')}${match.suffix}`;
+  lines[match.index] = renderLine(match.leading, next, match.trailing);
   const newContent = lines.join('\n') + (trailingNewline ? '\n' : '\n');
   const backupPath = await writeAtomicWithBackup(filePath, newContent);
   return { changed: true, mods: next, backupPath };

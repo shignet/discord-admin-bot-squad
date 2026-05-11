@@ -7,10 +7,19 @@ const execFileAsync = promisify(execFile);
 
 const MAX_OUTPUT_BYTES = 64 * 1024;
 const DEFAULT_TIMEOUT_MS = 15_000;
+// Restart/start/stop can block on TimeoutStopSec / process teardown; status is cheap.
+const ACTION_TIMEOUTS_MS = {
+  status: 15_000,
+  restart: 90_000,
+  start: 60_000,
+  stop: 60_000,
+};
 
 export async function runSystemctl(action, service, allowedServices = config.squadServices) {
   assertAllowedAction(action);
   assertAllowedService(service, allowedServices);
+
+  const timeout = ACTION_TIMEOUTS_MS[action] ?? DEFAULT_TIMEOUT_MS;
 
   // execFile with an argument array — no shell, no interpolation, no injection surface.
   // The sudoers file restricts this user to exactly the combinations we also validate here.
@@ -18,7 +27,7 @@ export async function runSystemctl(action, service, allowedServices = config.squ
     const { stdout, stderr } = await execFileAsync(
       '/usr/bin/sudo',
       ['-n', '/bin/systemctl', action, service],
-      { timeout: DEFAULT_TIMEOUT_MS, maxBuffer: MAX_OUTPUT_BYTES },
+      { timeout, maxBuffer: MAX_OUTPUT_BYTES },
     );
     return { ok: true, code: 0, stdout, stderr };
   } catch (err) {
